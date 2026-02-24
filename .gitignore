@@ -1,0 +1,9 @@
+.pio/
+include/config.h
+*.o
+*.a
+*.bin
+*.elf
+*.map
+waveshare_demo/
+waveshare_demo.zip

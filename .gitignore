@@ -7,3 +7,4 @@ include/config.h
 *.map
 waveshare_demo/
 waveshare_demo.zip
+build_log.txt

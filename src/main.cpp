@@ -29,6 +29,10 @@
 #include "pins.h"
 #include "config.h"
 #include "waveshare_init.h"
+#include "Settings.h"
+#include "Provisioning.h"
+
+static ProjectSettings settings;
 
 // ─── Colours (RGB565: RRRRR GGGGGG BBBBB) ────────────────────────────────────
 static const uint16_t C_BG       = 0x0000;  // black
@@ -177,15 +181,15 @@ void process_swipe(int x1, int y1, int x2, int y2) {
 
 
 float bearing_to(float lat, float lon) {
-    float dlat = lat - HOME_LAT;
-    float dlon = (lon - HOME_LON) * cosf(HOME_LAT * DEG2RAD);
+    float dlat = lat - settings.home_lat;
+    float dlon = (lon - settings.home_lon) * cosf(settings.home_lat * DEG2RAD);
     float b = atan2f(dlon, dlat) * (180.0f / M_PI);
     return b < 0 ? b + 360.0f : b;
 }
 
 bool latlon_to_screen(float lat, float lon, int *sx, int *sy) {
-    float dlat = lat - HOME_LAT;
-    float dlon = (lon - HOME_LON) * cosf(HOME_LAT * DEG2RAD);
+    float dlat = lat - settings.home_lat;
+    float dlon = (lon - settings.home_lon) * cosf(settings.home_lat * DEG2RAD);
     float dist = sqrtf(dlat*dlat + dlon*dlon) * NM_PER_DEG;
     if (dist > range_nm) return false;
     float scale = (float)SCREEN_RADIUS / range_nm;
@@ -207,7 +211,8 @@ void fetch_task(void *pv) {
 
             if (WiFi.status() == WL_CONNECTED) {
                 HTTPClient http;
-                http.begin(String("http://") + ADSB_HOST + ":" + ADSB_PORT + ADSB_PATH);
+                String url = String("http://") + ADSB_HOST + ":" + ADSB_PORT + ADSB_PATH;
+                http.begin(url);
                 http.setTimeout(2500);
                 int code = http.GET();
                 if (code == 200) {
@@ -541,10 +546,31 @@ void setup() {
     gfx->setTextSize(2);
     gfx->setCursor(45, 155); gfx->print("ADS-B Radar");
     gfx->setTextSize(1);
-    gfx->setCursor(60, 180); gfx->print("Connecting WiFi...");
+    
+    // Load Settings
+    if (!SettingsManager::load(settings)) {
+        gfx->setCursor(60, 180); gfx->print("No config! AP Mode...");
+        ProvisioningManager::startPortal(settings);
+    }
+    
+    range_nm = settings.range_nm; // Initialize range from settings
 
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) delay(500);
+    gfx->setCursor(60, 180); gfx->print("Connecting WiFi...");
+    Serial.printf("Connecting to %s...\n", settings.wifi_ssid);
+
+    WiFi.begin(settings.wifi_ssid, settings.wifi_password);
+    
+    unsigned long start_wifi = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start_wifi < 10000) {
+        delay(500);
+    }
+
+    if (WiFi.status() != WL_CONNECTED) {
+        gfx->fillRect(60, 180, 400, 20, C_BG);
+        gfx->setCursor(60, 180); gfx->print("WiFi failed! AP Mode...");
+        ProvisioningManager::startPortal(settings);
+    }
+
     Serial.printf("WiFi: %s\n", WiFi.localIP().toString().c_str());
 
     ac_mutex = xSemaphoreCreateMutex();

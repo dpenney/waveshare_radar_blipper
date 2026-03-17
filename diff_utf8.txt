@@ -1,0 +1,207 @@
+﻿diff --git a/src/main.cpp b/src/main.cpp
+index bf5268b..f66884e 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -36,6 +36,7 @@ static const uint16_t C_RING     = 0x0120;  // dark green ring
+ static const uint16_t C_GRID     = 0x00A0;  // dim green crosshair
+ static const uint16_t C_SWEEP    = 0x07E0;  // bright green sweep arm
+ static const uint16_t C_BLIP     = 0x07E0;  // blip colour
++static const uint16_t C_DIM_BLIP = 0x02E0;  // dimmed blip (dark green)
+ static const uint16_t C_SEL      = 0xFFFF;  // selected aircraft (white)
+ static const uint16_t C_LBL      = 0x03E0;  // callsign label
+ static const uint16_t C_BOX_BG   = 0x0020;  // detail box background
+@@ -113,6 +114,8 @@ struct Aircraft {
+     int     altitude, speed, heading;
+     bool    has_pos;
+     uint32_t seen_ms;
++    bool    position_updated; // true if updated since last sweep sweep
++    bool    is_dimmed;        // true if currently in dimmed state
+     // Derived
+     float   bearing;      // 0=N clockwise
+     // Paint state (Core 1 only)
+@@ -169,48 +172,46 @@ void fetch_task(void *pv) {
+                     deserializeJson(doc, *http.getStreamPtr());
+                     http.end();
+ 
+-                    // Build new list
+-                    Aircraft tmp[MAX_AIRCRAFT];
+-                    int tmp_count = 0;
+-                    for (JsonObject ac : doc["aircraft"].as<JsonArray>()) {
+-                        if (tmp_count >= MAX_AIRCRAFT) break;
+-                        Aircraft &a = tmp[tmp_count];
+-                        strlcpy(a.hex, ac["hex"] | "------", sizeof(a.hex));
+-                        const char *fl = ac["flight"];
+-                        if (fl) strlcpy(a.callsign, fl, sizeof(a.callsign));
+-                        else    strlcpy(a.callsign, a.hex, sizeof(a.callsign));
+-                        for (int i=strlen(a.callsign)-1;i>=0&&a.callsign[i]==' ';i--) a.callsign[i]='\0';
+-                        a.has_pos  = ac["lat"].is<float>() && ac["lon"].is<float>();
+-                        a.lat      = ac["lat"] | 0.0f;
+-                        a.lon      = ac["lon"] | 0.0f;
+-                        a.altitude = ac["alt_baro"] | -1;
+-                        a.speed    = (int)(ac["gs"].as<float>());
+-                        a.heading  = (int)(ac["track"].as<float>());
+-                        a.seen_ms  = millis();
+-                        a.bearing  = a.has_pos ? bearing_to(a.lat, a.lon) : -1.0f;
+-                        // Preserve paint state from previous matching entry
+-                        a.paint_valid = false;
+-                        a.paint_x = a.paint_y = 0;
+-                        a.paint_cs[0] = '\0';
+-                        xSemaphoreTake(ac_mutex, portMAX_DELAY);
+-                        for (int j = 0; j < aircraft_count; j++) {
+-                            if (strcmp(aircraft[j].hex, a.hex) == 0) {
+-                        a.paint_valid = aircraft[j].paint_valid;
+-                                a.paint_x     = aircraft[j].paint_x;
+-                                a.paint_y     = aircraft[j].paint_y;
+-                                a.paint_hdg   = aircraft[j].paint_hdg;
+-                                strlcpy(a.paint_cs, aircraft[j].paint_cs, sizeof(a.paint_cs));
+-                                break;
++                    // Update aircraft list in-place
++                    xSemaphoreTake(ac_mutex, portMAX_DELAY);
++                    for (JsonObject ac_obj : doc["aircraft"].as<JsonArray>()) {
++                        const char *hex = ac_obj["hex"] | "";
++                        if (!hex[0]) continue;
++
++                        // Find existing or empty slot
++                        int idx = -1;
++                        for (int i = 0; i < aircraft_count; i++) {
++                            if (strcmp(aircraft[i].hex, hex) == 0) { idx = i; break; }
++                        }
++                        if (idx == -1 && aircraft_count < MAX_AIRCRAFT) {
++                            idx = aircraft_count++;
++                            memset(&aircraft[idx], 0, sizeof(Aircraft));
++                            strlcpy(aircraft[idx].hex, hex, sizeof(aircraft[idx].hex));
++                        }
++
++                        if (idx != -1) {
++                            Aircraft &a = aircraft[idx];
++                            const char *fl = ac_obj["flight"];
++                            if (fl) strlcpy(a.callsign, fl, sizeof(a.callsign));
++                            else if (!a.callsign[0]) strlcpy(a.callsign, a.hex, sizeof(a.callsign));
++                            for (int i=strlen(a.callsign)-1;i>=0&&a.callsign[i]==' ';i--) a.callsign[i]='\0';
++                            
++                            a.has_pos  = ac_obj["lat"].is<float>() && ac_obj["lon"].is<float>();
++                            if (a.has_pos) {
++                                a.lat      = ac_obj["lat"];
++                                a.lon      = ac_obj["lon"];
++                                a.bearing  = bearing_to(a.lat, a.lon);
++                                // Mark fresh only if updated in last 5 seconds
++                                if ((float)(ac_obj["seen_pos"] | 0.0f) < 5.0f) {
++                                    a.position_updated = true;
++                                }
+                             }
++                            a.altitude = ac_obj["alt_baro"] | a.altitude;
++                            a.speed    = ac_obj["gs"].is<float>() ? (int)ac_obj["gs"].as<float>() : a.speed;
++                            a.heading  = ac_obj["track"].is<float>() ? (int)ac_obj["track"].as<float>() : a.heading;
++                            a.seen_ms  = millis();
+                         }
+-                        xSemaphoreGive(ac_mutex);
+-                        tmp_count++;
+                     }
+-
+-                    // Atomically replace aircraft list
+-                    xSemaphoreTake(ac_mutex, portMAX_DELAY);
+-                    memcpy(aircraft, tmp, tmp_count * sizeof(Aircraft));
+-                    aircraft_count = tmp_count;
+                     xSemaphoreGive(ac_mutex);
+                 } else {
+                     http.end();
+@@ -244,21 +245,19 @@ void restore_rings_and_cross() {
+     // Restore range labels at 12-o'clock on each ring
+     gfx->setTextColor(C_LBL, C_BG);
+     gfx->setTextSize(1);
++    char buf[8];
+     for (int r = 1; r <= 3; r++) {
+-        gfx->setCursor(CX+4, CY - SCREEN_RADIUS*r/3 + 1);
+-        gfx->printf("%.0f", range_nm*r/3.0f);
++        sprintf(buf, "%.0f", range_nm*r/3.0f);
++        int16_t x, y; uint16_t w, h;
++        gfx->getTextBounds(buf, 0, 0, &x, &y, &w, &h);
++        gfx->setCursor(CX - w/2, CY - SCREEN_RADIUS*r/3 + 1);
++        gfx->print(buf);
+     }
+ }
+ 
+ void draw_static_bg() {
+     gfx->fillScreen(C_BG);
+     restore_rings_and_cross();
+-    gfx->setTextColor(C_LBL, C_BG);
+-    gfx->setTextSize(1);
+-    for (int r = 1; r <= 3; r++) {
+-        gfx->setCursor(CX+4, CY - SCREEN_RADIUS*r/3 + 1);
+-        gfx->printf("%.0f", range_nm*r/3.0f);
+-    }
+ }
+ 
+ /** True if segment (x1,y1)ΓåÆ(x2,y2) passes within `thresh` pixels of point (px,py) */
+@@ -299,7 +298,7 @@ void erase_sweep(float a_deg) {
+ 
+         // Redraw this blip
+         bool sel = (i == selected_idx);
+-        draw_blip_shape(lx, ly, ac.paint_hdg, sel ? C_SEL : C_BLIP);
++        draw_blip_shape(lx, ly, ac.paint_hdg, sel ? C_SEL : (ac.is_dimmed ? C_DIM_BLIP : C_BLIP));
+         gfx->setTextColor(sel ? C_SEL : C_LBL, C_BG);
+         gfx->setTextSize(1);
+         gfx->setCursor(lx+8, ly-4);
+@@ -327,9 +326,9 @@ void erase_blip(int x, int y, int hdg, const char *cs) {
+ }
+ 
+ /** Paint a blip and record paint state */
+-void paint_blip(Aircraft &ac, int sx, int sy) {
++void paint_blip(Aircraft &ac, int sx, int sy, uint16_t color) {
+     bool sel = (&ac - aircraft) == selected_idx;
+-    draw_blip_shape(sx, sy, ac.heading, sel ? C_SEL : C_BLIP);
++    draw_blip_shape(sx, sy, ac.heading, sel ? C_SEL : color);
+     gfx->setTextColor(sel ? C_SEL : C_LBL, C_BG);
+     gfx->setTextSize(1);
+     gfx->setCursor(sx+8, sy-4);
+@@ -351,8 +350,9 @@ void sweep_paint_aircraft(float prev_angle, float new_angle) {
+     for (int i = 0; i < aircraft_count; i++) {
+         Aircraft &ac = aircraft[i];
+         if (!ac.has_pos || ac.bearing < 0) continue;
++        
++        // Hard expiry for very old data
+         if (millis() - ac.seen_ms > (uint32_t)(AIRCRAFT_MAX_AGE_S * 1000)) {
+-            // Expired ΓÇö erase if still painted
+             if (ac.paint_valid) {
+                 erase_blip(ac.paint_x, ac.paint_y, ac.heading, ac.paint_cs);
+                 ac.paint_valid = false;
+@@ -369,12 +369,33 @@ void sweep_paint_aircraft(float prev_angle, float new_angle) {
+         if (ac.paint_valid)
+             erase_blip(ac.paint_x, ac.paint_y, ac.heading, ac.paint_cs);
+ 
+-        // Paint new position
+-        int sx, sy;
+-        if (latlon_to_screen(ac.lat, ac.lon, &sx, &sy))
+-            paint_blip(ac, sx, sy);
+-        else
+-            ac.paint_valid = false;
++        // Aging logic
++        if (ac.position_updated) {
++            // Fresh data! Paint normally.
++            int sx, sy;
++            if (latlon_to_screen(ac.lat, ac.lon, &sx, &sy)) {
++                paint_blip(ac, sx, sy, C_BLIP);
++                ac.is_dimmed = false;
++            } else {
++                ac.paint_valid = false;
++            }
++            ac.position_updated = false;
++        } else {
++            // No update since last sweep
++            if (ac.is_dimmed) {
++                // Was already dimmed, now remove
++                ac.paint_valid = false;
++            } else {
++                // Dim it
++                int sx, sy;
++                if (latlon_to_screen(ac.lat, ac.lon, &sx, &sy)) {
++                    paint_blip(ac, sx, sy, C_DIM_BLIP);
++                    ac.is_dimmed = true;
++                } else {
++                    ac.paint_valid = false;
++                }
++            }
++        }
+     }
+ 
+     xSemaphoreGive(ac_mutex);

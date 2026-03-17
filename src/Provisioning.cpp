@@ -15,7 +15,7 @@ const char PORTAL_HTML[] = R"rawliteral(
 <style>
 body { font-family: 'Courier New', monospace; background: #000; color: #07e0; text-align: center; padding: 20px; }
 .container { max-width: 400px; margin: auto; padding: 30px; border: 2px solid #07e; border-radius: 15px; background: #050505; box-shadow: 0 0 20px #07e055; }
-input { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #0350; background: #000; color: #fff; border-radius: 5px; box-sizing: border-box; font-size: 16px; border: 1px solid #07e0; }
+input, select { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #07e0; background: #000; color: #fff; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
 button { width: 100%; padding: 15px; background: #03a000; color: #000; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; }
 button:active { background: #33a; }
 .geo-btn { background: #33a; color: #000; border: 1px solid #07e0; margin-bottom: 20px; }
@@ -23,7 +23,17 @@ h2 { letter-spacing: 2px; }
 p { font-size: 14px; color: #0350; }
 </style>
 <script>
-// Geolocation removed: requires SSL/HTTPS context not available on local AP
+function setLocation(sel) {
+    var val = sel.value;
+    if (val == "manual") {
+        document.getElementById('lat').value = "";
+        document.getElementById('lon').value = "";
+    } else {
+        var coords = val.split(",");
+        document.getElementById('lat').value = coords[0];
+        document.getElementById('lon').value = coords[1];
+    }
+}
 </script>
 </head><body>
 <div class="container">
@@ -32,9 +42,16 @@ p { font-size: 14px; color: #0350; }
 <form action="/save" method="POST">
 <input type="text" name="ssid" placeholder="WIFI SSID" required>
 <input type="password" name="pass" placeholder="WIFI PASSWORD">
+<label style="display:block; text-align:left; font-size:12px; margin-top:10px;">HOME POSITION:</label>
+<select onchange="setLocation(this)">
+    <option value="manual">-- MANUAL ENTRY --</option>
+    <option value="33.771524,-92.858774">Barksdale AFB, LA</option>
+    <option value="51.681442,-1.802442">RAF Fairford</option>
+    <option value="37.8044,-122.2711,-7">Oakland, CA</option>
+</select>
 <input type="text" name="lat" id="lat" placeholder="HOME LATITUDE" required>
 <input type="text" name="lon" id="lon" placeholder="HOME LONGITUDE" required>
-<p style="color: #666; font-size: 12px;">(Use Google Maps or LatLong.net to find coordinates)</p>
+<p style="color: #666; font-size: 12px;">(Use Google Maps or LatLong.net for manual coords)</p>
 <button type="submit">COMMIT SETTINGS</button>
 </form></div></body></html>
 )rawliteral";

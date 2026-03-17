@@ -38,6 +38,7 @@ static ProjectSettings settings;
 
 enum AppState { APP_RADAR, APP_CLOCK };
 static AppState current_app = APP_RADAR;
+static Arduino_Canvas *clock_canvas = nullptr;
 
 // ─── Colours (RGB565: RRRRR GGGGGG BBBBB) ────────────────────────────────────
 static const uint16_t C_BG       = 0x0000;  // black
@@ -618,6 +619,12 @@ void setup() {
     while (fetch_busy || fetch_requested) delay(50);
 
     full_redraw();
+
+    // Prepare clock canvas
+    clock_canvas = new Arduino_Canvas(SCREEN_WIDTH, SCREEN_HEIGHT, gfx, 0, 0, 0);
+    if (!clock_canvas->begin()) {
+        Serial.println("Warning: Clock canvas failed to initialize");
+    }
 }
 
 void loop() {
@@ -662,7 +669,11 @@ void loop() {
     } else if (current_app == APP_CLOCK) {
         static unsigned long last_clock_ms = 0;
         if (now - last_clock_ms >= 500) { // Update every half second
-            ClockView::draw(gfx, CX, CY, SCREEN_RADIUS);
+            if (clock_canvas) {
+                clock_canvas->fillScreen(0x0000);
+                ClockView::draw(clock_canvas, CX, CY, SCREEN_RADIUS);
+                gfx->draw16bitRGBBitmap(0, 0, clock_canvas->getFramebuffer(), SCREEN_WIDTH, SCREEN_HEIGHT);
+            }
             last_clock_ms = now;
         }
     }

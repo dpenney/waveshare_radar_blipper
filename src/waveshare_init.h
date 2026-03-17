@@ -1,194 +1,149 @@
-void init_waveshare_amoled_glass(Arduino_ESP32QSPI *bus) {
-    bus->beginWrite();
-    bus->writeC8D8(0xF0, 0x28);
-    bus->writeC8D8(0xF2, 0x28);
-    bus->writeC8D8(0x73, 0xF0);
-    bus->writeC8D8(0x7C, 0xD1);
-    bus->writeC8D8(0x83, 0xE0);
-    bus->writeC8D8(0x84, 0x61);
-    bus->writeC8D8(0xF2, 0x82);
-    bus->writeC8D8(0xF0, 0x00);
-    bus->writeC8D8(0xF0, 0x01);
-    bus->writeC8D8(0xF1, 0x01);
-    bus->writeC8D8(0xB0, 0x56);
-    bus->writeC8D8(0xB1, 0x4D);
-    bus->writeC8D8(0xB2, 0x24);
-    bus->writeC8D8(0xB4, 0x87);
-    bus->writeC8D8(0xB5, 0x44);
-    bus->writeC8D8(0xB6, 0x8B);
-    bus->writeC8D8(0xB7, 0x40);
-    bus->writeC8D8(0xB8, 0x86);
-    bus->writeC8D8(0xBA, 0x00);
-    bus->writeC8D8(0xBB, 0x08);
-    bus->writeC8D8(0xBC, 0x08);
-    bus->writeC8D8(0xBD, 0x00);
-    bus->writeC8D8(0xC0, 0x80);
-    bus->writeC8D8(0xC1, 0x10);
-    bus->writeC8D8(0xC2, 0x37);
-    bus->writeC8D8(0xC3, 0x80);
-    bus->writeC8D8(0xC4, 0x10);
-    bus->writeC8D8(0xC5, 0x37);
-    bus->writeC8D8(0xC6, 0xA9);
-    bus->writeC8D8(0xC7, 0x41);
-    bus->writeC8D8(0xC8, 0x01);
-    bus->writeC8D8(0xC9, 0xA9);
-    bus->writeC8D8(0xCA, 0x41);
-    bus->writeC8D8(0xCB, 0x01);
-    bus->writeC8D8(0xD0, 0x91);
-    bus->writeC8D8(0xD1, 0x68);
-    bus->writeC8D8(0xD2, 0x68);
-    uint8_t data_0xF5[] = {0x00, 0xA5};
-    bus->writeC8Bytes(0xF5, data_0xF5, 2);
-    bus->writeC8D8(0xDD, 0x4F);
-    bus->writeC8D8(0xDE, 0x4F);
-    bus->writeC8D8(0xF1, 0x10);
-    bus->writeC8D8(0xF0, 0x00);
-    bus->writeC8D8(0xF0, 0x02);
-    uint8_t data_0xE0[] = {0xF0, 0x0A, 0x10, 0x09, 0x09, 0x36, 0x35, 0x33, 0x4A, 0x29, 0x15, 0x15, 0x2E, 0x34};
-    bus->writeC8Bytes(0xE0, data_0xE0, 14);
-    uint8_t data_0xE1[] = {0xF0, 0x0A, 0x0F, 0x08, 0x08, 0x05, 0x34, 0x33, 0x4A, 0x39, 0x15, 0x15, 0x2D, 0x33};
-    bus->writeC8Bytes(0xE1, data_0xE1, 14);
-    bus->writeC8D8(0xF0, 0x10);
-    bus->writeC8D8(0xF3, 0x10);
-    bus->writeC8D8(0xE0, 0x07);
-    bus->writeC8D8(0xE1, 0x00);
-    bus->writeC8D8(0xE2, 0x00);
-    bus->writeC8D8(0xE3, 0x00);
-    bus->writeC8D8(0xE4, 0xE0);
-    bus->writeC8D8(0xE5, 0x06);
-    bus->writeC8D8(0xE6, 0x21);
-    bus->writeC8D8(0xE7, 0x01);
-    bus->writeC8D8(0xE8, 0x05);
-    bus->writeC8D8(0xE9, 0x02);
-    bus->writeC8D8(0xEA, 0xDA);
-    bus->writeC8D8(0xEB, 0x00);
-    bus->writeC8D8(0xEC, 0x00);
-    bus->writeC8D8(0xED, 0x0F);
-    bus->writeC8D8(0xEE, 0x00);
-    bus->writeC8D8(0xEF, 0x00);
-    bus->writeC8D8(0xF8, 0x00);
-    bus->writeC8D8(0xF9, 0x00);
-    bus->writeC8D8(0xFA, 0x00);
-    bus->writeC8D8(0xFB, 0x00);
-    bus->writeC8D8(0xFC, 0x00);
-    bus->writeC8D8(0xFD, 0x00);
-    bus->writeC8D8(0xFE, 0x00);
-    bus->writeC8D8(0xFF, 0x00);
-    bus->writeC8D8(0x60, 0x40);
-    bus->writeC8D8(0x61, 0x04);
-    bus->writeC8D8(0x62, 0x00);
-    bus->writeC8D8(0x63, 0x42);
-    bus->writeC8D8(0x64, 0xD9);
-    bus->writeC8D8(0x65, 0x00);
-    bus->writeC8D8(0x66, 0x00);
-    bus->writeC8D8(0x67, 0x00);
-    bus->writeC8D8(0x68, 0x00);
-    bus->writeC8D8(0x69, 0x00);
-    bus->writeC8D8(0x6A, 0x00);
-    bus->writeC8D8(0x6B, 0x00);
-    bus->writeC8D8(0x70, 0x40);
-    bus->writeC8D8(0x71, 0x03);
-    bus->writeC8D8(0x72, 0x00);
-    bus->writeC8D8(0x73, 0x42);
-    bus->writeC8D8(0x74, 0xD8);
-    bus->writeC8D8(0x75, 0x00);
-    bus->writeC8D8(0x76, 0x00);
-    bus->writeC8D8(0x77, 0x00);
-    bus->writeC8D8(0x78, 0x00);
-    bus->writeC8D8(0x79, 0x00);
-    bus->writeC8D8(0x7A, 0x00);
-    bus->writeC8D8(0x7B, 0x00);
-    bus->writeC8D8(0x80, 0x48);
-    bus->writeC8D8(0x81, 0x00);
-    bus->writeC8D8(0x82, 0x06);
-    bus->writeC8D8(0x83, 0x02);
-    bus->writeC8D8(0x84, 0xD6);
-    bus->writeC8D8(0x85, 0x04);
-    bus->writeC8D8(0x86, 0x00);
-    bus->writeC8D8(0x87, 0x00);
-    bus->writeC8D8(0x88, 0x48);
-    bus->writeC8D8(0x89, 0x00);
-    bus->writeC8D8(0x8A, 0x08);
-    bus->writeC8D8(0x8B, 0x02);
-    bus->writeC8D8(0x8C, 0xD8);
-    bus->writeC8D8(0x8D, 0x04);
-    bus->writeC8D8(0x8E, 0x00);
-    bus->writeC8D8(0x8F, 0x00);
-    bus->writeC8D8(0x90, 0x48);
-    bus->writeC8D8(0x91, 0x00);
-    bus->writeC8D8(0x92, 0x0A);
-    bus->writeC8D8(0x93, 0x02);
-    bus->writeC8D8(0x94, 0xDA);
-    bus->writeC8D8(0x95, 0x04);
-    bus->writeC8D8(0x96, 0x00);
-    bus->writeC8D8(0x97, 0x00);
-    bus->writeC8D8(0x98, 0x48);
-    bus->writeC8D8(0x99, 0x00);
-    bus->writeC8D8(0x9A, 0x0C);
-    bus->writeC8D8(0x9B, 0x02);
-    bus->writeC8D8(0x9C, 0xDC);
-    bus->writeC8D8(0x9D, 0x04);
-    bus->writeC8D8(0x9E, 0x00);
-    bus->writeC8D8(0x9F, 0x00);
-    bus->writeC8D8(0xA0, 0x48);
-    bus->writeC8D8(0xA1, 0x00);
-    bus->writeC8D8(0xA2, 0x05);
-    bus->writeC8D8(0xA3, 0x02);
-    bus->writeC8D8(0xA4, 0xD5);
-    bus->writeC8D8(0xA5, 0x04);
-    bus->writeC8D8(0xA6, 0x00);
-    bus->writeC8D8(0xA7, 0x00);
-    bus->writeC8D8(0xA8, 0x48);
-    bus->writeC8D8(0xA9, 0x00);
-    bus->writeC8D8(0xAA, 0x07);
-    bus->writeC8D8(0xAB, 0x02);
-    bus->writeC8D8(0xAC, 0xD7);
-    bus->writeC8D8(0xAD, 0x04);
-    bus->writeC8D8(0xAE, 0x00);
-    bus->writeC8D8(0xAF, 0x00);
-    bus->writeC8D8(0xB0, 0x48);
-    bus->writeC8D8(0xB1, 0x00);
-    bus->writeC8D8(0xB2, 0x09);
-    bus->writeC8D8(0xB3, 0x02);
-    bus->writeC8D8(0xB4, 0xD9);
-    bus->writeC8D8(0xB5, 0x04);
-    bus->writeC8D8(0xB6, 0x00);
-    bus->writeC8D8(0xB7, 0x00);
-    bus->writeC8D8(0xB8, 0x48);
-    bus->writeC8D8(0xB9, 0x00);
-    bus->writeC8D8(0xBA, 0x0B);
-    bus->writeC8D8(0xBB, 0x02);
-    bus->writeC8D8(0xBC, 0xDB);
-    bus->writeC8D8(0xBD, 0x04);
-    bus->writeC8D8(0xBE, 0x00);
-    bus->writeC8D8(0xBF, 0x00);
-    bus->writeC8D8(0xC0, 0x10);
-    bus->writeC8D8(0xC1, 0x47);
-    bus->writeC8D8(0xC2, 0x56);
-    bus->writeC8D8(0xC3, 0x65);
-    bus->writeC8D8(0xC4, 0x74);
-    bus->writeC8D8(0xC5, 0x88);
-    bus->writeC8D8(0xC6, 0x99);
-    bus->writeC8D8(0xC7, 0x01);
-    bus->writeC8D8(0xC8, 0xBB);
-    bus->writeC8D8(0xC9, 0xAA);
-    bus->writeC8D8(0xD0, 0x10);
-    bus->writeC8D8(0xD1, 0x47);
-    bus->writeC8D8(0xD2, 0x56);
-    bus->writeC8D8(0xD3, 0x65);
-    bus->writeC8D8(0xD4, 0x74);
-    bus->writeC8D8(0xD5, 0x88);
-    bus->writeC8D8(0xD6, 0x99);
-    bus->writeC8D8(0xD7, 0x01);
-    bus->writeC8D8(0xD8, 0xBB);
-    bus->writeC8D8(0xD9, 0xAA);
-    bus->writeC8D8(0xF3, 0x01);
-    bus->writeC8D8(0xF0, 0x00);
-    bus->writeC8D8(0x21, 0x00);
-    bus->writeC8D8(0x11, 0x00);
+#pragma once
+
+#include <Arduino.h>
+#include <Arduino_GFX_Library.h>
+#include "pins.h"
+#include "TCA9554PWR.h"
+#include <SPI.h>
+
+extern TCA9554PWR io_expander;
+
+#include <driver/spi_master.h>
+
+static spi_device_handle_t SPI_handle = NULL;
+
+void ST7701_WriteCommand(uint8_t cmd) {
+    spi_transaction_t spi_tran = {};
+    spi_tran.cmd = 0;
+    spi_tran.addr = cmd;
+    spi_device_transmit(SPI_handle, &spi_tran);
+}
+
+void ST7701_WriteData(uint8_t data) {
+    spi_transaction_t spi_tran = {};
+    spi_tran.cmd = 1;
+    spi_tran.addr = data;
+    spi_device_transmit(SPI_handle, &spi_tran);
+}
+
+void ST7701_Init_Sequence() {
+    // 1. Initialize native ESP32 SPI
+    spi_bus_config_t buscfg = {};
+    buscfg.mosi_io_num = LCD_MOSI_PIN;
+    buscfg.miso_io_num = -1;
+    buscfg.sclk_io_num = LCD_CLK_PIN;
+    buscfg.quadwp_io_num = -1;
+    buscfg.quadhd_io_num = -1;
+    buscfg.max_transfer_sz = 64;
+    spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
+
+    spi_device_interface_config_t devcfg = {};
+    devcfg.command_bits = 1;
+    devcfg.address_bits = 8;
+    devcfg.mode = 0; // SPI_MODE0
+    devcfg.clock_speed_hz = 40000000;
+    devcfg.spics_io_num = -1;
+    devcfg.queue_size = 1;
+    spi_bus_add_device(SPI2_HOST, &devcfg, &SPI_handle);
+
+    // 2. Drive CS LOW
+    io_expander.digitalWrite(EXIO_PIN3, LOW);
+    delay(10);
+
+    // 3. Send Init Commands
+    ST7701_WriteCommand(0xFF); ST7701_WriteData(0x77); ST7701_WriteData(0x01); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x13);
+    ST7701_WriteCommand(0xEF); ST7701_WriteData(0x08);
+    ST7701_WriteCommand(0xFF); ST7701_WriteData(0x77); ST7701_WriteData(0x01); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x10);
+    ST7701_WriteCommand(0xC0); ST7701_WriteData(0x3B); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0xC1); ST7701_WriteData(0x10); ST7701_WriteData(0x0C);
+    ST7701_WriteCommand(0xC2); ST7701_WriteData(0x07); ST7701_WriteData(0x0A);
+    ST7701_WriteCommand(0xC7); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0xCC); ST7701_WriteData(0x10);
+    ST7701_WriteCommand(0xCD); ST7701_WriteData(0x08);
+    ST7701_WriteCommand(0xB0); ST7701_WriteData(0x05); ST7701_WriteData(0x12); ST7701_WriteData(0x98); ST7701_WriteData(0x0E); ST7701_WriteData(0x0F); ST7701_WriteData(0x07); ST7701_WriteData(0x07); ST7701_WriteData(0x09); ST7701_WriteData(0x09); ST7701_WriteData(0x23); ST7701_WriteData(0x05); ST7701_WriteData(0x52); ST7701_WriteData(0x0F); ST7701_WriteData(0x67); ST7701_WriteData(0x2C); ST7701_WriteData(0x11);
+    ST7701_WriteCommand(0xB1); ST7701_WriteData(0x0B); ST7701_WriteData(0x11); ST7701_WriteData(0x97); ST7701_WriteData(0x0C); ST7701_WriteData(0x12); ST7701_WriteData(0x06); ST7701_WriteData(0x06); ST7701_WriteData(0x08); ST7701_WriteData(0x08); ST7701_WriteData(0x22); ST7701_WriteData(0x03); ST7701_WriteData(0x51); ST7701_WriteData(0x11); ST7701_WriteData(0x66); ST7701_WriteData(0x2B); ST7701_WriteData(0x0F);
+    ST7701_WriteCommand(0xFF); ST7701_WriteData(0x77); ST7701_WriteData(0x01); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x11);
+    ST7701_WriteCommand(0xB0); ST7701_WriteData(0x5D);
+    ST7701_WriteCommand(0xB1); ST7701_WriteData(0x3E);
+    ST7701_WriteCommand(0xB2); ST7701_WriteData(0x81);
+    ST7701_WriteCommand(0xB3); ST7701_WriteData(0x80);
+    ST7701_WriteCommand(0xB5); ST7701_WriteData(0x4E);
+    ST7701_WriteCommand(0xB7); ST7701_WriteData(0x85);
+    ST7701_WriteCommand(0xB8); ST7701_WriteData(0x20);
+    ST7701_WriteCommand(0xC1); ST7701_WriteData(0x78);
+    ST7701_WriteCommand(0xC2); ST7701_WriteData(0x78);
+    ST7701_WriteCommand(0xD0); ST7701_WriteData(0x88);
+    ST7701_WriteCommand(0xE0); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x02);
+    ST7701_WriteCommand(0xE1); ST7701_WriteData(0x06); ST7701_WriteData(0x30); ST7701_WriteData(0x08); ST7701_WriteData(0x30); ST7701_WriteData(0x05); ST7701_WriteData(0x30); ST7701_WriteData(0x07); ST7701_WriteData(0x30); ST7701_WriteData(0x00); ST7701_WriteData(0x33); ST7701_WriteData(0x33);
+    ST7701_WriteCommand(0xE2); ST7701_WriteData(0x11); ST7701_WriteData(0x11); ST7701_WriteData(0x33); ST7701_WriteData(0x33); ST7701_WriteData(0xF4); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0xF4); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0xE3); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x11); ST7701_WriteData(0x11);
+    ST7701_WriteCommand(0xE4); ST7701_WriteData(0x44); ST7701_WriteData(0x44);
+    ST7701_WriteCommand(0xE5); ST7701_WriteData(0x0D); ST7701_WriteData(0xF5); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x0F); ST7701_WriteData(0xF7); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x09); ST7701_WriteData(0xF1); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x0B); ST7701_WriteData(0xF3); ST7701_WriteData(0x30); ST7701_WriteData(0xF0);
+    ST7701_WriteCommand(0xE6); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x11); ST7701_WriteData(0x11);
+    ST7701_WriteCommand(0xE7); ST7701_WriteData(0x44); ST7701_WriteData(0x44);
+    ST7701_WriteCommand(0xE8); ST7701_WriteData(0x0C); ST7701_WriteData(0xF4); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x0E); ST7701_WriteData(0xF6); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x08); ST7701_WriteData(0xF0); ST7701_WriteData(0x30); ST7701_WriteData(0xF0); ST7701_WriteData(0x0A); ST7701_WriteData(0xF2); ST7701_WriteData(0x30); ST7701_WriteData(0xF0);
+    ST7701_WriteCommand(0xE9); ST7701_WriteData(0x36); ST7701_WriteData(0x01);
+    ST7701_WriteCommand(0xEB); ST7701_WriteData(0x00); ST7701_WriteData(0x01); ST7701_WriteData(0xE4); ST7701_WriteData(0xE4); ST7701_WriteData(0x44); ST7701_WriteData(0x88); ST7701_WriteData(0x40);
+    ST7701_WriteCommand(0xED); ST7701_WriteData(0xFF); ST7701_WriteData(0x10); ST7701_WriteData(0xAF); ST7701_WriteData(0x76); ST7701_WriteData(0x54); ST7701_WriteData(0x2B); ST7701_WriteData(0xCF); ST7701_WriteData(0xFF); ST7701_WriteData(0xFF); ST7701_WriteData(0xFC); ST7701_WriteData(0xB2); ST7701_WriteData(0x45); ST7701_WriteData(0x67); ST7701_WriteData(0xFA); ST7701_WriteData(0x01); ST7701_WriteData(0xFF);
+    ST7701_WriteCommand(0xEF); ST7701_WriteData(0x08); ST7701_WriteData(0x08); ST7701_WriteData(0x08); ST7701_WriteData(0x45); ST7701_WriteData(0x3F); ST7701_WriteData(0x54);
+    ST7701_WriteCommand(0xFF); ST7701_WriteData(0x77); ST7701_WriteData(0x01); ST7701_WriteData(0x00); ST7701_WriteData(0x00); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0x11);
     delay(120);
-    bus->writeC8D8(0x29, 0x00);
-    bus->writeC8D8(0x36, 0x60);
-    bus->writeC8D8(0x36, 0x00);
-    bus->endWrite();
+    ST7701_WriteCommand(0x3A); ST7701_WriteData(0x66);
+    ST7701_WriteCommand(0x36); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0x35); ST7701_WriteData(0x00);
+    ST7701_WriteCommand(0x29);
+
+    io_expander.digitalWrite(EXIO_PIN3, HIGH); // CS High
+    delay(10);
+}
+
+Arduino_RGB_Display *create_waveshare_28C_rgb_panel() {
+    // 1. Setup I2C & IO Expander
+    Wire.begin(I2C_SDA, I2C_SCL);
+    Wire.setClock(400000);
+    io_expander.begin();
+    // Set EXIO1(ST7701 RST), EXIO2(Touch RST), EXIO3(ST7701 CS) as outputs, all LOW initially
+    io_expander.modeAll(0x00); // 0 = output
+    io_expander.writeAll(0x7F); // 0x7F means EXIO_PIN8 (Buzzer) is LOW, everything else is HIGH
+
+    // 2. ST7701 Reset Sequence
+    io_expander.digitalWrite(EXIO_PIN1, LOW); // Reset Low
+    delay(10);
+    io_expander.digitalWrite(EXIO_PIN1, HIGH); // Reset High
+    delay(10);
+
+    // 3. GT911 Touch Reset Sequence with address selection (INT LOW during reset = 0x5D)
+    pinMode(TOUCH_INT, OUTPUT);
+    digitalWrite(TOUCH_INT, LOW);
+    io_expander.digitalWrite(EXIO_PIN2, LOW); // Touch Reset Low
+    delay(10);
+    io_expander.digitalWrite(EXIO_PIN2, HIGH); // Touch Reset High
+    delay(200); // Give it time to boot
+    pinMode(TOUCH_INT, INPUT); // Re-assign to input for interrupts
+    delay(50);
+
+    // 4. Bit-bang SPI Initialization
+    ST7701_Init_Sequence();
+
+    // 4. Create RGB Panel with ESP32-S3 specific timings for this 480x480 panel
+    // B0-B4 are mapped to LCD_RGB_D0..D4
+    // G0-G5 are mapped to LCD_RGB_D5..D10
+    // R0-R4 are mapped to LCD_RGB_D11..D15
+    Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
+        LCD_RGB_DE, LCD_RGB_VSYNC, LCD_RGB_HSYNC, LCD_RGB_PCLK,
+        LCD_RGB_D11 /*R0*/, LCD_RGB_D12 /*R1*/, LCD_RGB_D13 /*R2*/, LCD_RGB_D14 /*R3*/, LCD_RGB_D15 /*R4*/,
+        LCD_RGB_D5  /*G0*/, LCD_RGB_D6  /*G1*/, LCD_RGB_D7  /*G2*/, LCD_RGB_D8  /*G3*/, LCD_RGB_D9  /*G4*/, LCD_RGB_D10 /*G5*/,
+        LCD_RGB_D0  /*B0*/, LCD_RGB_D1  /*B1*/, LCD_RGB_D2  /*B2*/, LCD_RGB_D3  /*B3*/, LCD_RGB_D4  /*B4*/,
+        1 /* hsync_polarity */, 40 /* hsync_front_porch */, 8 /* hsync_pulse_width */, 40 /* hsync_back_porch */,
+        1 /* vsync_polarity */, 10 /* vsync_front_porch */, 2 /* vsync_pulse_width */, 20 /* vsync_back_porch */,
+        0 /* pclk_active_neg */, 18000000 /* prefer_speed */, false /* useBigEndian */,
+        0 /* de_idle_high */, 0 /* pclk_idle_high */, 4800 /* bounce_buffer_size */
+    );
+
+    Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
+        480 /* width */, 480 /* height */, rgbpanel, 0 /* rotation */, true /* auto_flush */
+    );
+
+    return gfx;
 }

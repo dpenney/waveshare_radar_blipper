@@ -7,24 +7,54 @@
 
 #pragma once
 
-// ── Display (SH8601 AMOLED — QSPI) ──────────────────────────────────────────
-#define LCD_CS    14   ///< Chip select
-#define LCD_SCLK  13   ///< Clock
-#define LCD_MOSI  15   ///< SDIO0 (Data 0)
-#define LCD_MISO  16   ///< SDIO1 (Data 1)
-#define LCD_D2    17   ///< SDIO2 (Data 2)
-#define LCD_D3    18   ///< SDIO3 (Data 3)
-#define LCD_RST   21   ///< Hardware reset (active LOW)
-#define LCD_BL    47   ///< Backlight enable (HIGH = on)
+// ── Display (ST7701S RGB) ─────────────────────────────────────────────────────
+#define LCD_CLK_PIN    2
+#define LCD_MOSI_PIN   1 
+#define LCD_BL         6   ///< Backlight enable (PWM or HIGH = on)
 
-// ── Touch controller (CST816 — I2C, addr 0x15) ───────────────────────────────
-#define TOUCH_SDA  11  ///< I2C data
-#define TOUCH_SCL  12  ///< I2C clock
-#define TOUCH_RST  10  ///< Hardware reset (active LOW, pulse to initialise)
-#define TOUCH_INT   9  ///< Interrupt — active LOW open-drain, use INPUT_PULLUP
+// RGB Interface Pins
+#define LCD_RGB_HSYNC  38
+#define LCD_RGB_VSYNC  39
+#define LCD_RGB_DE     40
+#define LCD_RGB_PCLK   41
+#define LCD_RGB_DISP   -1
 
-// ── Rotary encoder (two independent micro-switches) ──────────────────────────
-//   A goes LOW while turning CW,  HIGH on release → count UP
-//   B goes LOW while turning CCW, HIGH on release → count DOWN
-#define ENCODER_A   8  ///< CW  switch
-#define ENCODER_B   7  ///< CCW switch
+// RGB Data Pins (16-bit)
+#define LCD_RGB_D0     5
+#define LCD_RGB_D1     45
+#define LCD_RGB_D2     48
+#define LCD_RGB_D3     47
+#define LCD_RGB_D4     21
+#define LCD_RGB_D5     14
+#define LCD_RGB_D6     13
+#define LCD_RGB_D7     12
+#define LCD_RGB_D8     11
+#define LCD_RGB_D9     10
+#define LCD_RGB_D10    9
+#define LCD_RGB_D11    46
+#define LCD_RGB_D12    3
+#define LCD_RGB_D13    8
+#define LCD_RGB_D14    18
+#define LCD_RGB_D15    17
+
+// ── Touch controller (GT911) & IO Expander (TCA9554) ────────────────────────
+// The shared I2C bus is used for the Touch Controller AND the TCA9554
+#define I2C_SDA        15
+#define I2C_SCL        7
+
+#define TOUCH_INT      16   ///< GT911 Interrupt
+#define TCA9554_ADDR   0x20
+
+// TCA9554 IO Expander Pins
+#define EXIO_PIN1      1   ///< ST7701 Reset
+#define EXIO_PIN2      2   ///< GT911 Reset
+#define EXIO_PIN3      3   ///< ST7701 CS
+#define EXIO_PIN4      4
+#define EXIO_PIN5      5
+#define EXIO_PIN6      6
+#define EXIO_PIN7      7
+#define EXIO_PIN8      8
+
+// ── Encoder (Commented out — no encoder on 2.8C board) ──────────────────────
+// #define ENCODER_A   8
+// #define ENCODER_B   7

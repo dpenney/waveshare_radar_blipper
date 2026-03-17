@@ -42,66 +42,62 @@ static const uint16_t C_LBL      = 0x03E0;  // callsign label
 static const uint16_t C_BOX_BG   = 0x0020;  // detail box background
 static const uint16_t C_BOX_BORD = 0x03E0;  // detail box border
 
-// ─── Display ─────────────────────────────────────────────────────────────────
+// ─── Display & Expanders ─────────────────────────────────────────────────────
 
-Arduino_DataBus *bus = new Arduino_ESP32QSPI(
-    LCD_CS, LCD_SCLK, LCD_MOSI, LCD_MISO, LCD_D2, LCD_D3);
-Arduino_GFX *gfx = new Arduino_SH8601(bus, LCD_RST, 0, 360, 360);
+#include "TCA9554PWR.h"
+#include "Touch_GT911.h"
 
-#define SCREEN_WIDTH  360
-#define SCREEN_HEIGHT 360
-#define CX            180
-#define CY            180
-#define SCREEN_RADIUS 172
+TCA9554PWR io_expander(TCA9554_ADDR);
+Arduino_RGB_Display *gfx = nullptr; // Initialized in setup via create_waveshare_28C_rgb_panel()
+
+#define SCREEN_WIDTH  480
+#define SCREEN_HEIGHT 480
+#define CX            240
+#define CY            240
+#define SCREEN_RADIUS 230
 
 static const float DEG2RAD    = M_PI / 180.0f;
 static const float NM_PER_DEG = 60.0f;
 
+void full_redraw(); 
+int  find_nearest(int x, int y);
+void draw_blip_shape(int x, int y, int head, uint16_t color);
+void draw_detail_box();
+void erase_detail_box();
+
+static bool detail_visible = false;
+static bool detail_clobbered = false;
+static float range_nm      = DEFAULT_RANGE_NM;
+static int   selected_idx  = -1;
+
 // ─── Touch ───────────────────────────────────────────────────────────────────
 
-#define CST816_ADDR 0x15
+Touch_GT911 touch;
 
 void touch_init() {
-    pinMode(TOUCH_RST, OUTPUT);
-    digitalWrite(TOUCH_RST, LOW);  delay(20);
-    digitalWrite(TOUCH_RST, HIGH); delay(50);
-    pinMode(TOUCH_INT, INPUT_PULLUP);
-    Wire.begin(TOUCH_SDA, TOUCH_SCL);
-    Wire.setClock(100000);
+    // Touch reset is handled inside create_waveshare_28C_rgb_panel() via TCA9554
+    pinMode(TOUCH_INT, INPUT); // GT911 Interrupt pin
+    if (touch.begin()) {
+        Serial.println("GT911 Touch initialized successfully.");
+    }
 }
 
 static int  touch_x = -1, touch_y = -1;
 
+// We will track the last touch state to handle tap vs swipe/zoom
+static bool last_was_touching = false;
+static uint32_t last_touch_time = 0;
+static int touch_start_x = -1, touch_start_y = -1;
+
 bool read_touch() {
-    Wire.beginTransmission(CST816_ADDR);
-    Wire.write(0x00);
-    if (Wire.endTransmission(false) != 0) { Wire.endTransmission(true); return false; }
-    Wire.requestFrom(CST816_ADDR, 7);
-    if (Wire.available() < 7) return false;
-    uint8_t p[7]; for (int i = 0; i < 7; i++) p[i] = Wire.read();
-    if (p[2] == 0) return false;
-    int x = ((p[3] & 0x0F) << 8) | p[4];
-    int y = ((p[5] & 0x0F) << 8) | p[6];
-    if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) return false;
-    touch_x = x; touch_y = y;
-    return true;
+    if (touch.read() && touch.points > 0) {
+        touch_x = touch.touches[0].x;
+        touch_y = touch.touches[0].y;
+        return true;
+    }
+    return false;
 }
 
-// ─── Encoder ─────────────────────────────────────────────────────────────────
-
-volatile int encoder_steps = 0;
-static uint8_t enc_prev_a = HIGH, enc_prev_b = HIGH;
-static uint8_t enc_deb_a = 0, enc_deb_b = 0;
-
-void poll_encoder() {
-    uint8_t a = digitalRead(ENCODER_A), b = digitalRead(ENCODER_B);
-    if (a==LOW){enc_deb_a=(a!=enc_prev_a)?0:enc_deb_a+1;}
-    else{if(a!=enc_prev_a&&++enc_deb_a>=2){enc_deb_a=0;encoder_steps++;}else enc_deb_a=0;}
-    enc_prev_a=a;
-    if (b==LOW){enc_deb_b=(b!=enc_prev_b)?0:enc_deb_b+1;}
-    else{if(b!=enc_prev_b&&++enc_deb_b>=2){enc_deb_b=0;encoder_steps--;}else enc_deb_b=0;}
-    enc_prev_b=b;
-}
 
 // ─── Aircraft (shared between Core 0 fetch and Core 1 render) ────────────────
 
@@ -114,7 +110,7 @@ struct Aircraft {
     int     altitude, speed, heading;
     bool    has_pos;
     uint32_t seen_ms;
-    bool    position_updated; // true if updated since last sweep sweep
+    bool    position_updated; // true if updated since last sweep
     bool    is_dimmed;        // true if currently in dimmed state
     // Derived
     float   bearing;      // 0=N clockwise
@@ -126,11 +122,59 @@ struct Aircraft {
 
 static Aircraft aircraft[MAX_AIRCRAFT];
 static int      aircraft_count = 0;
-static float    range_nm       = DEFAULT_RANGE_NM;
-static int      selected_idx   = -1;
 
 // Mutex protecting aircraft[] and aircraft_count
 static SemaphoreHandle_t ac_mutex;
+
+// ─── Gesture Detection ───────────────────────────────────────────────────────
+#define GESTURE_THRESHOLD 50
+
+void process_swipe(int x1, int y1, int x2, int y2) {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+
+    if (abs(dx) < 30 && abs(dy) < 30) {
+        // Gesture too small, treat as a TAP
+        int hit = find_nearest(x2, y2);
+        if (hit >= 0) {
+            selected_idx = hit;
+            xSemaphoreTake(ac_mutex, portMAX_DELAY);
+            Aircraft &ac = aircraft[hit];
+            if (ac.paint_valid)
+                draw_blip_shape(ac.paint_x, ac.paint_y, ac.heading, C_SEL);
+            xSemaphoreGive(ac_mutex);
+            draw_detail_box();
+        } else if (detail_visible) {
+            selected_idx = -1;
+            erase_detail_box();
+        }
+        return;
+    }
+
+    // Vertical Swipes (Zoom)
+    if (abs(dy) > abs(dx)) {
+        if (dy < -GESTURE_THRESHOLD) {
+            // Swipe UP -> Zoom IN
+            range_nm = max((float)MIN_RANGE_NM, range_nm / 1.3f);
+            Serial.println("Gesture: SWIPE UP (Zoom IN)");
+            full_redraw();
+        } else if (dy > GESTURE_THRESHOLD) {
+            // Swipe DOWN -> Zoom OUT
+            range_nm = min((float)MAX_RANGE_NM, range_nm * 1.3f);
+            Serial.println("Gesture: SWIPE DOWN (Zoom OUT)");
+            full_redraw();
+        }
+    } 
+    // Horizontal Swipes (App Navigation Placeholder)
+    else {
+        if (dx < -GESTURE_THRESHOLD) {
+            Serial.println("Gesture: SWIPE LEFT (Next App placeholder)");
+        } else if (dx > GESTURE_THRESHOLD) {
+            Serial.println("Gesture: SWIPE RIGHT (Prev App placeholder)");
+        }
+    }
+}
+
 
 float bearing_to(float lat, float lon) {
     float dlat = lat - HOME_LAT;
@@ -305,6 +349,20 @@ void erase_sweep(float a_deg) {
         gfx->print(ac.paint_cs);
     }
     xSemaphoreGive(ac_mutex);
+
+    // If detail box is visible, check if the sweep line clobbers it
+    if (detail_visible) {
+        // Box is at (160, 40) size (160, 68)
+        // Check if (CX, CY) -> (ex, ey) passes near box
+        // For simplicity, check 4 corners and center
+        if (line_near(CX, CY, ex, ey, 160, 40, 10.0f) || 
+            line_near(CX, CY, ex, ey, 320, 40, 10.0f) ||
+            line_near(CX, CY, ex, ey, 160, 108, 10.0f) ||
+            line_near(CX, CY, ex, ey, 320, 108, 10.0f) ||
+            line_near(CX, CY, ex, ey, 240, 74, 10.0f)) {
+            detail_clobbered = true;
+        }
+    }
 }
 
 void draw_sweep(float a_deg) {
@@ -401,10 +459,6 @@ void sweep_paint_aircraft(float prev_angle, float new_angle) {
     xSemaphoreGive(ac_mutex);
 }
 
-// ─── Detail box ──────────────────────────────────────────────────────────────
-
-static bool detail_visible = false;
-
 void draw_detail_box() {
     xSemaphoreTake(ac_mutex, portMAX_DELAY);
     if (selected_idx < 0 || selected_idx >= aircraft_count) {
@@ -413,21 +467,24 @@ void draw_detail_box() {
     Aircraft ac = aircraft[selected_idx];  // local copy
     xSemaphoreGive(ac_mutex);
 
-    gfx->fillRect(100, 24, 160, 68, C_BOX_BG);
-    gfx->drawRect(100, 24, 160, 68, C_BOX_BORD);
+    int bx = 160, by = 40, bw = 160, bh = 68;
+    gfx->fillRect(bx, by, bw, bh, C_BOX_BG);
+    gfx->drawRect(bx, by, bw, bh, C_BOX_BORD);
     gfx->setTextColor(C_LBL, C_BOX_BG);
     gfx->setTextSize(1);
-    gfx->setCursor(106, 32); gfx->print(ac.callsign[0] ? ac.callsign : ac.hex);
-    gfx->setCursor(106, 46); gfx->printf("Alt: %d ft", ac.altitude);
-    gfx->setCursor(106, 60); gfx->printf("Spd: %d kts", ac.speed);
-    gfx->setCursor(106, 74); gfx->printf("Hdg: %d deg", ac.heading);
+    gfx->setCursor(bx+6, by+8); gfx->print(ac.callsign[0] ? ac.callsign : ac.hex);
+    gfx->setCursor(bx+6, by+22); gfx->printf("Alt: %d ft", ac.altitude);
+    gfx->setCursor(bx+6, by+36); gfx->printf("Spd: %d kts", ac.speed);
+    gfx->setCursor(bx+6, by+50); gfx->printf("Hdg: %d deg", ac.heading);
     detail_visible = true;
+    detail_clobbered = false;
 }
 
 void erase_detail_box() {
-    gfx->fillRect(100, 24, 160, 68, C_BG);
+    gfx->fillRect(160, 40, 160, 68, C_BG);
     restore_rings_and_cross();
     detail_visible = false;
+    detail_clobbered = false;
 }
 
 void draw_range_label() {
@@ -459,6 +516,7 @@ void full_redraw() {
     draw_static_bg();
     draw_sweep(sweep_angle);
     draw_range_label();
+    if (detail_visible) draw_detail_box();
     prev_sweep = sweep_angle;
 }
 
@@ -466,13 +524,15 @@ void full_redraw() {
 
 void setup() {
     Serial.begin(115200);
-    pinMode(ENCODER_A, INPUT_PULLUP);
-    pinMode(ENCODER_B, INPUT_PULLUP);
-    pinMode(LCD_BL, OUTPUT);
-    digitalWrite(LCD_BL, HIGH);
+    // Encoder removed.
+    
+    // PWM Backlight on native GPIO 6
+    // The demo uses 20kHz, 10-bit resolution. 100% duty = 1024
+    ledcAttach(LCD_BL, 20000, 10);
+    ledcWrite(LCD_BL, 1023); // Max brightness (100%)
 
+    gfx = create_waveshare_28C_rgb_panel();
     gfx->begin();
-    init_waveshare_amoled_glass((Arduino_ESP32QSPI *)bus);
     touch_init();
 
     // Splash screen while WiFi connects
@@ -502,40 +562,21 @@ void setup() {
 void loop() {
     unsigned long now = millis();
 
-    // Encoder poll
-    static unsigned long last_enc_ms = 0;
-    if (now - last_enc_ms >= 3) { poll_encoder(); last_enc_ms = now; }
-
-    // Encoder → zoom
-    static int last_steps = 0;
-    int delta = encoder_steps - last_steps;
-    if (delta != 0) {
-        last_steps = encoder_steps;
-        if (delta > 0) range_nm = max((float)MIN_RANGE_NM, range_nm / 1.5f);
-        else           range_nm = min((float)MAX_RANGE_NM, range_nm * 1.5f);
-        full_redraw();
-        draw_range_label();
-    }
-
-    // Touch → select aircraft
-    static bool was_touching = false;
+    // Touch processing
     bool touching = read_touch();
-    if (touching && !was_touching) {
-        int hit = find_nearest(touch_x, touch_y);
-        if (hit >= 0) {
-            selected_idx = hit;
-            xSemaphoreTake(ac_mutex, portMAX_DELAY);
-            Aircraft &ac = aircraft[hit];
-            if (ac.paint_valid)
-                draw_blip_shape(ac.paint_x, ac.paint_y, ac.heading, C_SEL);
-            xSemaphoreGive(ac_mutex);
-            draw_detail_box();
-        } else if (detail_visible) {
-            selected_idx = -1;
-            erase_detail_box();
-        }
+    bool is_new_tap = touching && !last_was_touching;
+    if (is_new_tap) {
+        touch_start_x = touch_x;
+        touch_start_y = touch_y;
+        last_touch_time = now;
     }
-    was_touching = touching;
+
+    // On touch release, process the gesture
+    if (!touching && last_was_touching) {
+        process_swipe(touch_start_x, touch_start_y, touch_x, touch_y);
+    }
+    
+    last_was_touching = touching;
 
     // Sweep — smooth single-arm rotation
     static unsigned long last_sweep_ms = 0;
@@ -544,7 +585,7 @@ void loop() {
         if (prev_sweep >= 0) erase_sweep(prev_sweep);
         sweep_paint_aircraft(sweep_angle, new_angle);
         draw_sweep(new_angle);
-        if (detail_visible) draw_detail_box();
+        if (detail_visible && detail_clobbered) draw_detail_box();
         prev_sweep  = sweep_angle;
         sweep_angle = new_angle;
         last_sweep_ms = now;

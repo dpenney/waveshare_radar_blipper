@@ -547,9 +547,27 @@ void setup() {
     gfx->setCursor(45, 155); gfx->print("ADS-B Radar");
     gfx->setTextSize(1);
     
+    // Handshake: Check for touch to force provisioning mode
+    gfx->setTextColor(0x0350, C_BG); // Dim green
+    gfx->setCursor(60, 200); gfx->print("TOUCH TO SETUP...");
+    
+    unsigned long start_wait = millis();
+    bool force_ap = false;
+    while (millis() - start_wait < 2500) {
+        if (read_touch()) {
+            force_ap = true;
+            break;
+        }
+        delay(20);
+    }
+
     // Load Settings
-    if (!SettingsManager::load(settings)) {
-        gfx->setCursor(60, 180); gfx->print("No config! AP Mode...");
+    bool has_settings = SettingsManager::load(settings);
+    
+    if (!has_settings || force_ap) {
+        gfx->fillRect(0, 180, 480, 60, C_BG);
+        gfx->setCursor(60, 180); 
+        gfx->print(force_ap ? "FORCING SETUP..." : "NO CONFIG! AP MODE...");
         ProvisioningManager::startPortal(settings);
     }
     

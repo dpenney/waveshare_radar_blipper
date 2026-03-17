@@ -44,13 +44,13 @@ function setLocation(sel) {
 <input type="password" name="pass" placeholder="WIFI PASSWORD">
 <label style="display:block; text-align:left; font-size:12px; margin-top:10px;">HOME POSITION:</label>
 <select onchange="setLocation(this)">
-    <option value="manual">-- MANUAL ENTRY --</option>
-    <option value="33.771524,-92.858774">Barksdale AFB, LA</option>
+    <option value="33.771524,-92.858774" selected>Barksdale AFB, LA</option>
     <option value="51.681442,-1.802442">RAF Fairford</option>
     <option value="37.8044,-122.2711,-7">Oakland, CA</option>
+    <option value="manual">-- MANUAL ENTRY --</option>
 </select>
-<input type="text" name="lat" id="lat" placeholder="HOME LATITUDE" required>
-<input type="text" name="lon" id="lon" placeholder="HOME LONGITUDE" required>
+<input type="text" name="lat" id="lat" placeholder="HOME LATITUDE" value="33.771524" required>
+<input type="text" name="lon" id="lon" placeholder="HOME LONGITUDE" value="-92.858774" required>
 <p style="color: #666; font-size: 12px;">(Use Google Maps or LatLong.net for manual coords)</p>
 <button type="submit">COMMIT SETTINGS</button>
 </form></div></body></html>

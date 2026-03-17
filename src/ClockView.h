@@ -3,9 +3,15 @@
 
 #include <Arduino_GFX_Library.h>
 
+#include <Arduino_GFX.h>
+#include <lvgl.h>
+
 class ClockView {
 public:
-    static void draw(Arduino_GFX *gfx, int cx, int cy, int radius);
+    static void init();
+    static void update_time();
+    static void show();
+    static void hide();
 };
 
 #endif

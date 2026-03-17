@@ -48,12 +48,12 @@ function setLocation(sel) {
 <select onchange="setLocation(this)">
     <option value="33.771524,-92.858774,-6" selected>Barksdale AFB, LA</option>
     <option value="51.681442,-1.802442,0">RAF Fairford</option>
-    <option value="37.8044,-122.2711,-8">Oakland, CA</option>
+    <option value="37.8044,-122.2711,-7">Oakland, CA</option>
     <option value="manual">-- MANUAL ENTRY --</option>
 </select>
 <input type="text" name="lat" id="lat" placeholder="HOME LATITUDE" value="33.771524" required>
 <input type="text" name="lon" id="lon" placeholder="HOME LONGITUDE" value="-92.858774" required>
-<input type="text" name="gmt" id="gmt" placeholder="GMT OFFSET (e.g. -8)" value="-6" required>
+<input type="text" name="gmt" id="gmt" placeholder="GMT OFFSET (e.g. -7)" value="-6" required>
 <p style="color: #666; font-size: 12px;">(Use Google Maps or LatLong.net for manual coords)</p>
 <button type="submit">COMMIT SETTINGS</button>
 </form></div></body></html>

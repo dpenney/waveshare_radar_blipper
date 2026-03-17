@@ -23,6 +23,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
+#include <esp_heap_caps.h>
 #include <Arduino_GFX_Library.h>
 #include <math.h>
 
@@ -33,6 +34,7 @@
 #include "Provisioning.h"
 #include "ClockView.h"
 #include <time.h>
+#include <lvgl.h>
 
 static ProjectSettings settings;
 
@@ -139,6 +141,9 @@ static SemaphoreHandle_t ac_mutex;
 // ─── Gesture Detection ───────────────────────────────────────────────────────
 #define GESTURE_THRESHOLD 50
 
+
+static bool lvgl_active = false; // True only when LVGL clock screen is the active view
+
 void process_swipe(int x1, int y1, int x2, int y2) {
     int dx = x2 - x1;
     int dy = y2 - y1;
@@ -181,12 +186,18 @@ void process_swipe(int x1, int y1, int x2, int y2) {
             Serial.println("Gesture: SWIPE LEFT (Radar -> Clock)");
             if (current_app == APP_RADAR) {
                 current_app = APP_CLOCK;
-                gfx->fillScreen(0x0000); // Clear for clock
+                lvgl_active = true;  // Enable LVGL flush before showing clock screen
+                ClockView::show();
             }
         } else if (dx > GESTURE_THRESHOLD) {
             Serial.println("Gesture: SWIPE RIGHT (Clock -> Radar)");
             if (current_app == APP_CLOCK) {
+                lvgl_active = false;  // Stop LVGL from flushing over radar
                 current_app = APP_RADAR;
+                // Load a blank black screen so LVGL has something safe to reference
+                lv_obj_t *blank = lv_obj_create(NULL);
+                lv_obj_set_style_bg_color(blank, lv_color_black(), 0);
+                lv_scr_load(blank);
                 full_redraw();
             }
         }
@@ -213,6 +224,35 @@ bool latlon_to_screen(float lat, float lon, int *sx, int *sy) {
 }
 
 // ─── Core 0 Fetch Task ───────────────────────────────────────────────────────
+
+// ─── LVGL Integration ────────────────────────────────────────────────────────
+static const uint32_t screenWidth  = SCREEN_WIDTH;
+static const uint32_t screenHeight = SCREEN_HEIGHT;
+static lv_disp_draw_buf_t draw_buf;
+static lv_color_t *disp_draw_buf;
+static lv_disp_drv_t disp_drv;
+
+
+
+void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p) {
+    if (lvgl_active) {
+        uint32_t w = (area->x2 - area->x1 + 1);
+        uint32_t h = (area->y2 - area->y1 + 1);
+        gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
+    }
+    lv_disp_flush_ready(disp_drv);
+}
+
+void my_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
+    if (touch_x != -1 && touch_y != -1 && (read_touch() || last_was_touching)) {
+        data->state = LV_INDEV_STATE_PR;
+        data->point.x = touch_x;
+        data->point.y = touch_y;
+    } else {
+        data->state = LV_INDEV_STATE_REL;
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 static volatile bool fetch_requested = false;
 static volatile bool fetch_busy      = false;
@@ -620,11 +660,37 @@ void setup() {
 
     full_redraw();
 
-    // Prepare clock canvas
+    // Prepare clock canvas (Skip output re-init to avoid boot loop)
     clock_canvas = new Arduino_Canvas(SCREEN_WIDTH, SCREEN_HEIGHT, gfx, 0, 0, 0);
-    if (!clock_canvas->begin()) {
+    if (!clock_canvas->begin(GFX_SKIP_OUTPUT_BEGIN)) {
         Serial.println("Warning: Clock canvas failed to initialize");
+        delete clock_canvas;
+        clock_canvas = nullptr;
     }
+
+    // Initialize LVGL
+    lv_init();
+    size_t buf_size = SCREEN_WIDTH * 40; // 40 lines buffer
+    disp_draw_buf = (lv_color_t *)malloc(buf_size * sizeof(lv_color_t));
+    if (!disp_draw_buf) {
+        Serial.println("LVGL buffer allocation failed!");
+    }
+    lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, buf_size);
+
+    lv_disp_drv_init(&disp_drv);
+    disp_drv.hor_res = SCREEN_WIDTH;
+    disp_drv.ver_res = SCREEN_HEIGHT;
+    disp_drv.flush_cb = my_disp_flush;
+    disp_drv.draw_buf = &draw_buf;
+    lv_disp_drv_register(&disp_drv);
+
+    static lv_indev_drv_t indev_drv;
+    lv_indev_drv_init(&indev_drv);
+    indev_drv.type = LV_INDEV_TYPE_POINTER;
+    indev_drv.read_cb = my_touchpad_read;
+    lv_indev_drv_register(&indev_drv);
+
+    ClockView::init();
 }
 
 void loop() {
@@ -647,6 +713,8 @@ void loop() {
     last_was_touching = touching;
 
     if (current_app == APP_RADAR) {
+        // Don't run lv_timer_handler in radar mode -- it would flush LVGL's white screen over us
+        
         // Sweep — smooth single-arm rotation
         static unsigned long last_sweep_ms = 0;
         if (now - last_sweep_ms >= SWEEP_INTERVAL_MS) {
@@ -667,15 +735,8 @@ void loop() {
             last_fetch_ms = now;
         }
     } else if (current_app == APP_CLOCK) {
-        static unsigned long last_clock_ms = 0;
-        if (now - last_clock_ms >= 500) { // Update every half second
-            if (clock_canvas) {
-                clock_canvas->fillScreen(0x0000);
-                ClockView::draw(clock_canvas, CX, CY, SCREEN_RADIUS);
-                gfx->draw16bitRGBBitmap(0, 0, clock_canvas->getFramebuffer(), SCREEN_WIDTH, SCREEN_HEIGHT);
-            }
-            last_clock_ms = now;
-        }
+        ClockView::update_time(); 
+        lv_timer_handler();
     }
 
     delay(5);

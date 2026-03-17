@@ -45,6 +45,14 @@ bool SettingsManager::load(ProjectSettings &s) {
     s.range_nm = doc["range_nm"] | 15.0f;
     s.gmt_offset = doc["gmt_offset"] | 0.0f;
 
+    // Migration: if GMT offset is 0 but we're in the Pacific US, it was never set.
+    // Auto-correct to the compiled default and re-save so the fix persists.
+    if (s.gmt_offset == 0.0f && s.home_lon < -100.0f) {
+        Serial.printf("GMT offset migration: applying DEFAULT_GMT_OFFSET (%d)\n", DEFAULT_GMT_OFFSET);
+        s.gmt_offset = (float)DEFAULT_GMT_OFFSET;
+        SettingsManager::save(s);
+    }
+
     return true;
 }
 

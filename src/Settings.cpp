@@ -8,6 +8,7 @@ ProjectSettings::ProjectSettings() {
     home_lat = HOME_LAT;
     home_lon = HOME_LON;
     range_nm = DEFAULT_RANGE_NM;
+    gmt_offset = DEFAULT_GMT_OFFSET;
 }
 
 void SettingsManager::reset(ProjectSettings &s) {
@@ -42,6 +43,7 @@ bool SettingsManager::load(ProjectSettings &s) {
     s.home_lat = doc["home_lat"] | 0.0f;
     s.home_lon = doc["home_lon"] | 0.0f;
     s.range_nm = doc["range_nm"] | 15.0f;
+    s.gmt_offset = doc["gmt_offset"] | 0.0f;
 
     return true;
 }
@@ -58,6 +60,7 @@ bool SettingsManager::save(const ProjectSettings &s) {
     doc["home_lat"] = s.home_lat;
     doc["home_lon"] = s.home_lon;
     doc["range_nm"] = s.range_nm;
+    doc["gmt_offset"] = s.gmt_offset;
 
     serializeJson(doc, f);
     f.close();

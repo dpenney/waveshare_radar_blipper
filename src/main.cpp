@@ -31,8 +31,13 @@
 #include "waveshare_init.h"
 #include "Settings.h"
 #include "Provisioning.h"
+#include "ClockView.h"
+#include <time.h>
 
 static ProjectSettings settings;
+
+enum AppState { APP_RADAR, APP_CLOCK };
+static AppState current_app = APP_RADAR;
 
 // ─── Colours (RGB565: RRRRR GGGGGG BBBBB) ────────────────────────────────────
 static const uint16_t C_BG       = 0x0000;  // black
@@ -172,9 +177,17 @@ void process_swipe(int x1, int y1, int x2, int y2) {
     // Horizontal Swipes (App Navigation Placeholder)
     else {
         if (dx < -GESTURE_THRESHOLD) {
-            Serial.println("Gesture: SWIPE LEFT (Next App placeholder)");
+            Serial.println("Gesture: SWIPE LEFT (Radar -> Clock)");
+            if (current_app == APP_RADAR) {
+                current_app = APP_CLOCK;
+                gfx->fillScreen(0x0000); // Clear for clock
+            }
         } else if (dx > GESTURE_THRESHOLD) {
-            Serial.println("Gesture: SWIPE RIGHT (Prev App placeholder)");
+            Serial.println("Gesture: SWIPE RIGHT (Clock -> Radar)");
+            if (current_app == APP_CLOCK) {
+                current_app = APP_RADAR;
+                full_redraw();
+            }
         }
     }
 }
@@ -591,6 +604,10 @@ void setup() {
 
     Serial.printf("WiFi: %s\n", WiFi.localIP().toString().c_str());
 
+    // Initialize NTP
+    Serial.printf("Syncing NTP (GMT Offset: %.1f)...\n", settings.gmt_offset);
+    configTime(settings.gmt_offset * 3600, 0, "pool.ntp.org", "time.nist.gov");
+
     ac_mutex = xSemaphoreCreateMutex();
 
     // Fetch task on Core 0 — main loop (sweep/render) runs on Core 1
@@ -622,24 +639,32 @@ void loop() {
     
     last_was_touching = touching;
 
-    // Sweep — smooth single-arm rotation
-    static unsigned long last_sweep_ms = 0;
-    if (now - last_sweep_ms >= SWEEP_INTERVAL_MS) {
-        float new_angle = fmodf(sweep_angle + SWEEP_STEP_DEG, 360.0f);
-        if (prev_sweep >= 0) erase_sweep(prev_sweep);
-        sweep_paint_aircraft(sweep_angle, new_angle);
-        draw_sweep(new_angle);
-        if (detail_visible && detail_clobbered) draw_detail_box();
-        prev_sweep  = sweep_angle;
-        sweep_angle = new_angle;
-        last_sweep_ms = now;
-    }
+    if (current_app == APP_RADAR) {
+        // Sweep — smooth single-arm rotation
+        static unsigned long last_sweep_ms = 0;
+        if (now - last_sweep_ms >= SWEEP_INTERVAL_MS) {
+            float new_angle = fmodf(sweep_angle + SWEEP_STEP_DEG, 360.0f);
+            if (prev_sweep >= 0) erase_sweep(prev_sweep);
+            sweep_paint_aircraft(sweep_angle, new_angle);
+            draw_sweep(new_angle);
+            if (detail_visible && detail_clobbered) draw_detail_box();
+            prev_sweep  = sweep_angle;
+            sweep_angle = new_angle;
+            last_sweep_ms = now;
+        }
 
-    // Trigger background fetch every FETCH_INTERVAL_MS
-    static unsigned long last_fetch_ms = 0;
-    if (now - last_fetch_ms >= FETCH_INTERVAL_MS && !fetch_busy) {
-        fetch_requested = true;
-        last_fetch_ms = now;
+        // Trigger background fetch every FETCH_INTERVAL_MS
+        static unsigned long last_fetch_ms = 0;
+        if (now - last_fetch_ms >= FETCH_INTERVAL_MS && !fetch_busy) {
+            fetch_requested = true;
+            last_fetch_ms = now;
+        }
+    } else if (current_app == APP_CLOCK) {
+        static unsigned long last_clock_ms = 0;
+        if (now - last_clock_ms >= 500) { // Update every half second
+            ClockView::draw(gfx, CX, CY, SCREEN_RADIUS);
+            last_clock_ms = now;
+        }
     }
 
     delay(5);

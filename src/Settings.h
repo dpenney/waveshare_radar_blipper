@@ -10,6 +10,7 @@ struct ProjectSettings {
     float home_lat;
     float home_lon;
     float range_nm;
+    float gmt_offset;
 
     ProjectSettings();
 };

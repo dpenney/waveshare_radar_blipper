@@ -411,12 +411,10 @@ static void meter_draw_event_cb(lv_event_t * e) {
         float h_angle = (tm_info->tm_hour % 12 * 30.0f + tm_info->tm_min * 0.5f);
         float m_angle = (tm_info->tm_min * 6.0f + tm_info->tm_sec * 0.1f);
         
-        // ── Second Hand: 4Hz Stepped Movement ("High-beat" look) ─────────
-        // Quantize the microseconds to quarter-second increments (4Hz)
-        // This ensures precisely 120 movements every 30 seconds.
+        // ── Second Hand: Continuous Smooth Sweep ─────────
+        // Use the raw microsecond fraction for a completely continuous sweep at 60 FPS
         float fraction = global_frame_tv.tv_usec / 1000000.0f;
-        float quantized_fraction = floorf(fraction * 4.0f) / 4.0f;
-        float s_angle = (tm_info->tm_sec + quantized_fraction) * 6.0f;
+        float s_angle = (tm_info->tm_sec + fraction) * 6.0f;
 
 
         drawTriangleTip(draw_ctx, center, h_angle, 120, 10, lv_color_white()); // 10k ft
@@ -545,11 +543,10 @@ void ClockView::update_time() {
         if (!tm_ptr) return;
 
         float fraction = now_tv.tv_usec / 1000000.0f;
-        float q_fraction = floorf(fraction * 4.0f) / 4.0f;
 
         float h_angle = (tm_ptr->tm_hour % 12 * 30.0f + tm_ptr->tm_min * 0.5f);
         float m_angle = (tm_ptr->tm_min * 6.0f + tm_ptr->tm_sec * 0.1f);
-        float s_angle = (tm_ptr->tm_sec + q_fraction) * 6.0f;
+        float s_angle = (tm_ptr->tm_sec + fraction) * 6.0f;
 
         // If this is the very first update, initialize the global snapshot
         if (last_s_angle < 0) {

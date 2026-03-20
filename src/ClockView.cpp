@@ -355,8 +355,8 @@ static void drawNeedleWithWeight(lv_draw_ctx_t *draw_ctx, lv_point_t center, flo
     float back_limit = len * 0.25f;
 
     // Widths
-    float w_pivot = 2.0f; // 4px total width at base
-    float w_tip   = 0.5f; // 1px total width at tip
+    float w_pivot = 2.5f; // 5px total width at base
+    float w_tip   = 1.0f; // 2px total width at tip
 
     lv_draw_rect_dsc_t poly_dsc;
     lv_draw_rect_dsc_init(&poly_dsc);
@@ -383,6 +383,11 @@ static void drawNeedleWithWeight(lv_draw_ctx_t *draw_ctx, lv_point_t center, flo
     lv_point_t pT_L = {(lv_coord_t)(cTip.x + w_tip*cosP), (lv_coord_t)(cTip.y + w_tip*sinP)};
     lv_point_t pT_R = {(lv_coord_t)(cTip.x - w_tip*cosP), (lv_coord_t)(cTip.y - w_tip*sinP)};
 
+    // ── Outline covering BOTH segments ───────────────────────────────────────
+    // We outline the total bounding shape BEFORE drawing the fill so the bright colors sit on top
+    lv_point_t full_outline[6] = {pB_L, pB_R, pT_R, pT_L};
+    polyOutline(draw_ctx, full_outline, 4);
+
     // ── Segment 1: The rear/pivot area (Dark Grey) ───────────────────────────
     poly_dsc.bg_color = dark_grey;
     lv_point_t pts_rear[4] = {pB_L, pB_R, pP_R, pP_L};
@@ -398,10 +403,6 @@ static void drawNeedleWithWeight(lv_draw_ctx_t *draw_ctx, lv_point_t center, flo
     lv_point_t tF1[3] = {pG_L, pG_R, pT_R}; lv_point_t tF2[3] = {pG_L, pT_R, pT_L};
     lv_draw_polygon(draw_ctx, &poly_dsc, tF1, 3); lv_draw_polygon(draw_ctx, &poly_dsc, tF2, 3);
 
-    // ── Outline covering BOTH segments ───────────────────────────────────────
-    // We outline the total bounding shape so it remains distinguishable
-    lv_point_t full_outline[6] = {pB_L, pB_R, pT_R, pT_L};
-    polyOutline(draw_ctx, full_outline, 4);
 
     // ── Counterweight Circle (Dark Grey) ─────────────────────────────────────
     lv_draw_rect_dsc_t circle_dsc;
@@ -409,7 +410,7 @@ static void drawNeedleWithWeight(lv_draw_ctx_t *draw_ctx, lv_point_t center, flo
     circle_dsc.bg_color = dark_grey;
     circle_dsc.radius = LV_RADIUS_CIRCLE;
     int r = 10;
-    lv_area_t area = {(lv_coord_t)(pBack.x-r), (lv_coord_t)(pBack.y-r), (lv_coord_t)(pBack.x+r), (lv_coord_t)(pBack.y+r)};
+    lv_area_t area = {(lv_coord_t)(cBack.x-r), (lv_coord_t)(cBack.y-r), (lv_coord_t)(cBack.x+r), (lv_coord_t)(cBack.y+r)};
     
     // Outline for the counterweight circle
     lv_draw_rect_dsc_t circle_out_dsc = circle_dsc;

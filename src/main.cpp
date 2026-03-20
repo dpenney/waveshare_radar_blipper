@@ -678,12 +678,20 @@ void setup() {
 
     // Initialize LVGL
     lv_init();
-    size_t buf_size = SCREEN_WIDTH * 40; // 40 lines buffer
-    disp_draw_buf = (lv_color_t *)malloc(buf_size * sizeof(lv_color_t));
-    if (!disp_draw_buf) {
-        Serial.println("LVGL buffer allocation failed!");
+    
+    // Allocate two large 120-line buffers (1/4 screen) in PSRAM for double buffering
+    size_t buf_size = SCREEN_WIDTH * 120;
+    lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+    lv_color_t *buf2 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
+    
+    if (!buf1 || !buf2) {
+        Serial.println("LVGL double buffer PSRAM allocation failed! Falling back to SRAM single buffer...");
+        // Fallback to smaller single buffer in SRAM if PSRAM fails
+        buf_size = SCREEN_WIDTH * 40;
+        buf1 = (lv_color_t *)malloc(buf_size * sizeof(lv_color_t));
+        buf2 = NULL;
     }
-    lv_disp_draw_buf_init(&draw_buf, disp_draw_buf, NULL, buf_size);
+    lv_disp_draw_buf_init(&draw_buf, buf1, buf2, buf_size);
 
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res = SCREEN_WIDTH;

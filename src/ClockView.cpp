@@ -1,3 +1,12 @@
+/**
+ * @file ClockView.cpp
+ * @brief Complex analog clock UI using LVGL drawing primitives.
+ *
+ * Implements a high-performance, anti-aliased, polygon-based analog clock face.
+ * The hands are drawn dynamically using layered polygons to simulate depth,
+ * outlines, and counterweights. Synchronizes all drawing components strictly
+ * to a snapshot time structure to ensure visual coherency (no tearing or splitting).
+ */
 #include "ClockView.h"
 #include <time.h>
 #include <math.h>

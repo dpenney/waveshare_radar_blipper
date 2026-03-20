@@ -1,9 +1,19 @@
+/**
+ * @file Touch_GT911.cpp
+ * @brief Implementation of the GT911 capacitive touch panel driver.
+ *
+ * Provides a minimal, custom I2C interface to communicate with the Goodix GT911
+ * touch controller. Handles reading X/Y coordinates, touch size, and clearing
+ * hardware interrupt flags for proper continuous touch operation.
+ */
 #include "Touch_GT911.h"
 
+// Constructor: Initializes internal points counter and sets the I2C address
 Touch_GT911::Touch_GT911() : points(0), _address(GT911_ADDR) {
     memset(touches, 0, sizeof(touches));
 }
 
+// Verifies communication with the GT911 by reading its Product ID
 bool Touch_GT911::begin() {
     // Read product ID to verify communication
     uint8_t buf[4] = {0};
@@ -15,6 +25,8 @@ bool Touch_GT911::begin() {
     return false;
 }
 
+// Polls the GT911 over I2C to see if new touch data is available. 
+// If available, parses up to 5 touch points into the `touches` array.
 bool Touch_GT911::read() {
     uint8_t status;
     points = 0;
@@ -54,6 +66,7 @@ bool Touch_GT911::read() {
     return true; // We successfully read a valid status packet
 }
 
+// Helper to read multiple consecutive bytes from a 16-bit register address
 bool Touch_GT911::readRegisterData(uint16_t reg, uint8_t *data, size_t length) {
     Wire.beginTransmission(_address);
     Wire.write((uint8_t)(reg >> 8));
@@ -68,6 +81,7 @@ bool Touch_GT911::readRegisterData(uint16_t reg, uint8_t *data, size_t length) {
     return true;
 }
 
+// Helper to write multiple consecutive bytes to a 16-bit register address
 bool Touch_GT911::writeRegisterData(uint16_t reg, const uint8_t *data, size_t length) {
     Wire.beginTransmission(_address);
     Wire.write((uint8_t)(reg >> 8));
@@ -78,6 +92,7 @@ bool Touch_GT911::writeRegisterData(uint16_t reg, const uint8_t *data, size_t le
     return (Wire.endTransmission() == 0);
 }
 
+// Helper to write a single byte to a 16-bit register address
 bool Touch_GT911::writeRegister8(uint16_t reg, uint8_t data) {
     return writeRegisterData(reg, &data, 1);
 }

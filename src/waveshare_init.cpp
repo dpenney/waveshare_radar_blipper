@@ -1,3 +1,12 @@
+/**
+ * @file waveshare_init.cpp
+ * @brief Hardware initialization for the Waveshare ESP32-S3 2.8" RGB Screen.
+ *
+ * Handles the very specific bit-bang SPI initialization sequence for the ST7701
+ * LCD controller, configures the Arduino_GFX RGB panel timings (including the 
+ * DMA PCLK tunings and VSnyc settings), and initializes the I2C I/O expander
+ * required to un-reset the touch and display peripherals.
+ */
 #include "waveshare_init.h"
 #include <Wire.h>
 #include <SPI.h>

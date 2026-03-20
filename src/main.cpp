@@ -98,6 +98,7 @@ static int  touch_x = -1, touch_y = -1;
 
 // We will track the last touch state to handle tap vs swipe/zoom
 static bool last_was_touching = false;
+static bool touch_active = false;
 static uint32_t last_touch_time = 0;
 static int touch_start_x = -1, touch_start_y = -1;
 
@@ -244,7 +245,7 @@ void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *c
 }
 
 void my_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data) {
-    if (touch_x != -1 && touch_y != -1 && (read_touch() || last_was_touching)) {
+    if (touch_x != -1 && touch_y != -1 && touch_active) {
         data->state = LV_INDEV_STATE_PR;
         data->point.x = touch_x;
         data->point.y = touch_y;
@@ -697,8 +698,8 @@ void loop() {
     unsigned long now = millis();
 
     // Touch processing
-    bool touching = read_touch();
-    bool is_new_tap = touching && !last_was_touching;
+    touch_active = read_touch();
+    bool is_new_tap = touch_active && !last_was_touching;
     if (is_new_tap) {
         touch_start_x = touch_x;
         touch_start_y = touch_y;
@@ -706,11 +707,11 @@ void loop() {
     }
 
     // On touch release, process the gesture
-    if (!touching && last_was_touching) {
+    if (!touch_active && last_was_touching) {
         process_swipe(touch_start_x, touch_start_y, touch_x, touch_y);
     }
     
-    last_was_touching = touching;
+    last_was_touching = touch_active;
 
     if (current_app == APP_RADAR) {
         // Don't run lv_timer_handler in radar mode -- it would flush LVGL's white screen over us

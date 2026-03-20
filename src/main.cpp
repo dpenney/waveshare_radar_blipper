@@ -103,12 +103,19 @@ static uint32_t last_touch_time = 0;
 static int touch_start_x = -1, touch_start_y = -1;
 
 bool read_touch() {
-    if (touch.read() && touch.points > 0) {
-        touch_x = touch.touches[0].x;
-        touch_y = touch.touches[0].y;
-        return true;
+    if (touch.read()) {
+        // We actually got a status update from the hardware!
+        if (touch.points > 0) {
+            touch_x = touch.touches[0].x;
+            touch_y = touch.touches[0].y;
+            touch_active = true;
+        } else {
+            touch_active = false;
+        }
     }
-    return false;
+    // If touch.read() returned false, there was no hardware update; 
+    // keep the old touch_active/last_was_touching state.
+    return touch_active;
 }
 
 

@@ -51,7 +51,7 @@ bool Touch_GT911::read() {
     // Clear the buffer status bit so GT911 can generate new interrupts/data
     writeRegister8(GT911_READ_XY_REG, 0x00);
     
-    return (points > 0);
+    return true; // We successfully read a valid status packet
 }
 
 bool Touch_GT911::readRegisterData(uint16_t reg, uint8_t *data, size_t length) {

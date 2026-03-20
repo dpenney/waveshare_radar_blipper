@@ -24,7 +24,11 @@
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <esp_heap_caps.h>
+#define private public
+#define protected public
 #include <Arduino_GFX_Library.h>
+#undef private
+#undef protected
 #include <math.h>
 
 #include "pins.h"
@@ -242,10 +246,33 @@ static lv_disp_drv_t disp_drv;
 
 
 
+// ─── LVGL VSnyc Synchronization ────────────────────────────────────────────────
+// To prevent tearing, we align the LVGL buffer flush with the ESP32 LCD driver's
+// VSYNC signal. This callback gives a semaphore exactly when the screen finishes
+// drawing a frame, so our flush memcpy happens safely in the blanking period.
+// ─────────────────────────────────────────────────────────────────────────────
+SemaphoreHandle_t vsync_sem = NULL;
+
+IRAM_ATTR bool example_lvgl_on_vsync_callback(esp_lcd_panel_handle_t panel, const esp_lcd_rgb_panel_event_data_t *event_data, void *user_data)
+{
+    BaseType_t high_task_awoken = pdFALSE;
+    if (vsync_sem) {
+        xSemaphoreGiveFromISR(vsync_sem, &high_task_awoken);
+    }
+    return high_task_awoken == pdTRUE;
+}
+
 void my_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p) {
     if (lvgl_active) {
         uint32_t w = (area->x2 - area->x1 + 1);
         uint32_t h = (area->y2 - area->y1 + 1);
+        
+        // Wait for VSYNC signal before drawing to prevent "cut" tearing lines on the screen
+        if (vsync_sem) {
+            xSemaphoreTake(vsync_sem, portMAX_DELAY);
+        }
+        
+        // Copy LVGL's PSRAM buffer to the Arduino_GFX PSRAM buffer exactly after VSYNC
         gfx->draw16bitRGBBitmap(area->x1, area->y1, (uint16_t *)&color_p->full, w, h);
     }
     lv_disp_flush_ready(disp_drv);
@@ -598,8 +625,20 @@ void setup() {
     ledcAttach(LCD_BL, 20000, 10);
     ledcWrite(LCD_BL, 1023); // Max brightness (100%)
 
+    vsync_sem = xSemaphoreCreateBinary();
+
     gfx = create_waveshare_28C_rgb_panel();
     gfx->begin();
+
+    // ─── VSYNC Callback Registration Hack ───
+    // Arduino_GFX abstracts the ESP32-S3 RGB LCD driver, keeping `_panel_handle`
+    // inaccessible. We redefine private to public in the header to access the handle
+    // and manually register the VSYNC interrupt that LVGL depends on.
+    esp_lcd_rgb_panel_event_callbacks_t cbs = {
+        .on_vsync = example_lvgl_on_vsync_callback,
+    };
+    esp_lcd_rgb_panel_register_event_callbacks(gfx->_rgbpanel->_panel_handle, &cbs, NULL);
+
     touch_init();
 
     // Splash screen while WiFi connects
@@ -679,8 +718,10 @@ void setup() {
     // Initialize LVGL
     lv_init();
     
-    // Allocate two large 120-line buffers (1/4 screen) in PSRAM for double buffering
-    size_t buf_size = SCREEN_WIDTH * 120;
+    // Allocate two full-screen buffers in PSRAM for double buffering. 
+    // This allows LVGL to draw into one buffer entirely while the LCD 
+    // peripheral is safely streaming from the other, thus avoiding tearing.
+    size_t buf_size = SCREEN_WIDTH * SCREEN_HEIGHT;
     lv_color_t *buf1 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     lv_color_t *buf2 = (lv_color_t *)heap_caps_malloc(buf_size * sizeof(lv_color_t), MALLOC_CAP_SPIRAM);
     
@@ -698,6 +739,8 @@ void setup() {
     disp_drv.ver_res = SCREEN_HEIGHT;
     disp_drv.flush_cb = my_disp_flush;
     disp_drv.draw_buf = &draw_buf;
+    disp_drv.full_refresh = 1;      // Fix tearing issue with ESP32 DMA
+    disp_drv.antialiasing = 1;      // Smooth out the second hand
     lv_disp_drv_register(&disp_drv);
 
     static lv_indev_drv_t indev_drv;

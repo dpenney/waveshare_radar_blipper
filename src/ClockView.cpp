@@ -340,40 +340,68 @@ static void drawStubby(lv_draw_ctx_t *draw_ctx, lv_point_t center,
     }
 }
 
-// Helper for needle with counterweight
+// Helper for needle with counterweight (Uses polygons for sub-pixel anti-aliasing)
 static void drawNeedleWithWeight(lv_draw_ctx_t *draw_ctx, lv_point_t center, float angle_deg, int len, lv_color_t color) {
     float angle_rad = (angle_deg - 90.0f) * M_PI / 180.0f;
     float cosA = cos(angle_rad);
     float sinA = sin(angle_rad);
 
+    // Perpendicular vectors for width
+    float cosP = cos(angle_rad + M_PI / 2.0f);
+    float sinP = sin(angle_rad + M_PI / 2.0f);
+
     lv_color_t dark_grey = lv_color_make(60, 60, 60);
     float gap_len = GREY_GAP_PX; // Match the 30px gap on other hands
     float back_limit = len * 0.25f;
 
-    lv_draw_line_dsc_t line_dsc;
-    lv_draw_line_dsc_init(&line_dsc);
-    line_dsc.width = 3;
-    line_dsc.round_start = 1;
-    line_dsc.round_end = 1;
+    // Widths
+    float w_pivot = 2.0f; // 4px total width at base
+    float w_tip   = 0.5f; // 1px total width at tip
 
-    // ── Points for the two sections ──────────────────────────────────────────
-    lv_point_t pBack = {(lv_coord_t)(center.x - back_limit * cosA), (lv_coord_t)(center.y - back_limit * sinA)};
-    lv_point_t pGap  = {(lv_coord_t)(center.x + gap_len * cosA),    (lv_coord_t)(center.y + gap_len * sinA)};
-    lv_point_t pTip  = {(lv_coord_t)(center.x + len * cosA),        (lv_coord_t)(center.y + len * sinA)};
+    lv_draw_rect_dsc_t poly_dsc;
+    lv_draw_rect_dsc_init(&poly_dsc);
+    poly_dsc.bg_opa = LV_OPA_COVER;
 
-    // ── Outline covering BOTH segments ───────────────────────────────────────
-    lv_draw_line_dsc_t out_dsc = line_dsc;
-    out_dsc.color = HAND_OUTLINE;
-    out_dsc.width = line_dsc.width + HAND_OUTLINE_W * 2;
-    lv_draw_line(draw_ctx, &out_dsc, &pBack, &pTip);
+    // ── Points along center axis ──────────────────────────────────────────
+    lv_point_t cBack = {(lv_coord_t)(center.x - back_limit * cosA), (lv_coord_t)(center.y - back_limit * sinA)};
+    lv_point_t cPivot= center;
+    lv_point_t cGap  = {(lv_coord_t)(center.x + gap_len * cosA),    (lv_coord_t)(center.y + gap_len * sinA)};
+    lv_point_t cTip  = {(lv_coord_t)(center.x + len * cosA),        (lv_coord_t)(center.y + len * sinA)};
+
+    // Width vectors for left/right points
+    lv_point_t pB_L = {(lv_coord_t)(cBack.x + w_pivot*cosP), (lv_coord_t)(cBack.y + w_pivot*sinP)};
+    lv_point_t pB_R = {(lv_coord_t)(cBack.x - w_pivot*cosP), (lv_coord_t)(cBack.y - w_pivot*sinP)};
+
+    lv_point_t pP_L = {(lv_coord_t)(cPivot.x + w_pivot*cosP), (lv_coord_t)(cPivot.y + w_pivot*sinP)};
+    lv_point_t pP_R = {(lv_coord_t)(cPivot.x - w_pivot*cosP), (lv_coord_t)(cPivot.y - w_pivot*sinP)};
+
+    // Width at the gap (interpolated between pivot and tip)
+    float w_gap = w_pivot - ((w_pivot - w_tip) * (gap_len / len));
+    lv_point_t pG_L = {(lv_coord_t)(cGap.x + w_gap*cosP), (lv_coord_t)(cGap.y + w_gap*sinP)};
+    lv_point_t pG_R = {(lv_coord_t)(cGap.x - w_gap*cosP), (lv_coord_t)(cGap.y - w_gap*sinP)};
+
+    lv_point_t pT_L = {(lv_coord_t)(cTip.x + w_tip*cosP), (lv_coord_t)(cTip.y + w_tip*sinP)};
+    lv_point_t pT_R = {(lv_coord_t)(cTip.x - w_tip*cosP), (lv_coord_t)(cTip.y - w_tip*sinP)};
 
     // ── Segment 1: The rear/pivot area (Dark Grey) ───────────────────────────
-    line_dsc.color = dark_grey;
-    lv_draw_line(draw_ctx, &line_dsc, &pBack, &pGap);
+    poly_dsc.bg_color = dark_grey;
+    lv_point_t pts_rear[4] = {pB_L, pB_R, pP_R, pP_L};
+    lv_point_t pts_mid[4]  = {pP_L, pP_R, pG_R, pG_L};
+    // Draw via two triangles per trapezoid to ensure LVGL renders it solidly
+    lv_point_t tR1[3] = {pB_L, pB_R, pP_R}; lv_point_t tR2[3] = {pB_L, pP_R, pP_L};
+    lv_point_t tM1[3] = {pP_L, pP_R, pG_R}; lv_point_t tM2[3] = {pP_L, pG_R, pG_L};
+    lv_draw_polygon(draw_ctx, &poly_dsc, tR1, 3); lv_draw_polygon(draw_ctx, &poly_dsc, tR2, 3);
+    lv_draw_polygon(draw_ctx, &poly_dsc, tM1, 3); lv_draw_polygon(draw_ctx, &poly_dsc, tM2, 3);
 
     // ── Segment 2: The tip area (Orange) ─────────────────────────────────────
-    line_dsc.color = color;
-    lv_draw_line(draw_ctx, &line_dsc, &pGap, &pTip);
+    poly_dsc.bg_color = color;
+    lv_point_t tF1[3] = {pG_L, pG_R, pT_R}; lv_point_t tF2[3] = {pG_L, pT_R, pT_L};
+    lv_draw_polygon(draw_ctx, &poly_dsc, tF1, 3); lv_draw_polygon(draw_ctx, &poly_dsc, tF2, 3);
+
+    // ── Outline covering BOTH segments ───────────────────────────────────────
+    // We outline the total bounding shape so it remains distinguishable
+    lv_point_t full_outline[6] = {pB_L, pB_R, pT_R, pT_L};
+    polyOutline(draw_ctx, full_outline, 4);
 
     // ── Counterweight Circle (Dark Grey) ─────────────────────────────────────
     lv_draw_rect_dsc_t circle_dsc;
